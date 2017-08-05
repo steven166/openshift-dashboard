@@ -1,7 +1,8 @@
 import { Component, OnInit, trigger, state, style, transition, animate } from '@angular/core';
 import * as Chartist from 'chartist';
-
-declare const md: any;
+import { Http, Headers, Response } from "@angular/http";
+import { Observable } from "rxjs/Observable";
+import "rxjs/add/observable/zip";
 
 @Component({
   selector: 'home-cmp',
@@ -10,7 +11,7 @@ declare const md: any;
   styleUrls: ['./home.component.css']
 })
 
-export class HomeComponent implements OnInit {
+export class HomeComponent {
 
   cpuUsed = 17;
   cpuCapacity = 24;
@@ -21,12 +22,101 @@ export class HomeComponent implements OnInit {
   podsUsed = 78;
   podsCapacity = 200;
 
-  ngOnInit() {
+  nodeNames = [];
+  namespaces = [];
+
+  constructor (http:Http){
+    const host = "";
+    const token = "";
+    let obs1 = http.get(host + "/api/v1/nodes", {headers: new Headers({Authorization: "Bearer " + token})});
+    let obs2 = http.get(host + "/api/v1/pods", {headers: new Headers({Authorization: "Bearer " + token})});
+    Observable.zip(obs1, obs2).subscribe((resp:Response[]) => {
+      this.calcLoad(resp[0].json().items, resp[1].json().items);
+    });
+  }
+
+  calcLoad(nodes, pods){
+    let cpu = 0;
+    let memory = 0;
+    let cpuUsed = 0;
+    let memoryUsed = 0;
+    nodes.forEach(node => {
+      if(node.metadata && this.nodeNames.indexOf(node.metadata.name) > -1 && node.status && node.status.capacity){
+        cpu += parseInt(node.status.capacity.cpu);
+        let mem = node.status.capacity.memory.replace("Ki", "");
+        memory += parseInt(mem) / 1024 / 1024;
+      }
+    });
+    pods.forEach(pod => {
+      if(pod.spec && pod.spec.containers && pod.metadata && this.namespaces.indexOf(pod.metadata.namespace) > -1){
+        pod.spec.containers.forEach(container => {
+          let mem:number;
+          let cpu:number;
+          if(container.resources){
+            if(container.resources.requests){
+              cpu = this.findCpu(container.resources.requests);
+              mem = this.findMemory(container.resources.requests);
+            }
+            if((!cpu || !mem) && container.resources.limits){
+              if(!cpu){
+                cpu = this.findCpu(container.resources.limits);
+              }
+              if(!mem){
+                mem = this.findMemory(container.resources.limits);
+              }
+            }
+          }
+          if(cpu){
+            cpuUsed += cpu;
+          }
+          if(mem){
+            memoryUsed += mem;
+          }
+        });
+      }
+    });
+    this.podsUsed = pods.length;
+    this.cpuCapacity = Math.round(cpu);
+    this.memoryCapacity = Math.round(memory);
+    this.cpuUsed = Math.round(cpuUsed);
+    this.memoryUsed = Math.round(memoryUsed);
+
+    let cpuRatio = this.cpuUsed / this.cpuCapacity;
+    let memRatio = this.memoryUsed / this.memoryCapacity;
+    if(cpuRatio > memRatio){
+      this.podsCapacity = Math.round(this.podsUsed / cpuRatio);
+    }else{
+      this.podsCapacity = Math.round(this.podsUsed / memRatio);
+    }
 
     this.drawChart('#cpuChart', this.cpuUsed / this.cpuCapacity * 100);
     this.drawChart('#memoryChart', this.memoryUsed / this.memoryCapacity * 100);
     this.drawChart('#discChart', this.discUsed / this.discCapacity * 100);
     this.drawChart('#podsChart', this.podsUsed / this.podsCapacity * 100);
+  }
+
+  private findCpu(obj:any):number{
+    if(obj.cpu){
+      if(obj.cpu.indexOf("m") > -1){
+        return parseInt(obj.cpu.replace("m", "")) / 1000
+      }else{
+        return parseFloat(obj.cpu);
+      }
+    }
+    return 0;
+  }
+
+  private findMemory(obj:any):number{
+    if(obj.memory){
+      if(obj.memory.indexOf("Mi") > -1){
+        return parseFloat(obj.memory.replace("Mi", "")) / 1024
+      }else if(obj.memory.indexOf("Gi") > -1){
+        return parseFloat(obj.memory.replace("Gi", ""))
+      }else if(obj.memory.indexOf("Ki") > -1) {
+        return parseInt( obj.memory.replace( "Ki", "" ) ) / 1024 / 1024
+      }
+    }
+    return 0;
   }
 
   private drawChart( clazz: string, progress: number ) {

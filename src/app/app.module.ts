@@ -9,6 +9,7 @@ import { FooterModule } from './shared/footer/footer.module';
 import { NavbarModule } from './shared/navbar/navbar.module';
 import { SidebarModule } from './sidebar/sidebar.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { HttpModule } from "@angular/http";
 
 @NgModule({
   imports:      [
@@ -17,6 +18,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     SidebarModule,
     NavbarModule,
     FooterModule,
+    HttpModule,
     RouterModule.forRoot([])
   ],
   declarations: [ AppComponent, DashboardComponent ],
