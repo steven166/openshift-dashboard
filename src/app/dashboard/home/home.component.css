@@ -1,0 +1,33 @@
+.card .card-content{
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.card .card-content .category{
+  position: absolute;
+  top: 45px;
+  width: 100%;
+  text-align: center;
+  color: white;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.card .card-content .title{
+  position: absolute;
+  bottom: 35px;
+  width: 100%;
+  text-align: center;
+
+  color: white;
+  font-size: 16px;
+}
+
+.card .card-header .ct-chart{
+  position: relative;
+  top: 8px;
+}
+
+.card small {
+  color: #eee
+}
